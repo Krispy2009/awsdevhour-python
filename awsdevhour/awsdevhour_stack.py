@@ -1,8 +1,7 @@
-from aws_cdk import core
+from aws_cdk import core, aws_s3
 
 
 class AwsdevhourStack(core.Stack):
-
     def __init__(self, scope: core.Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
