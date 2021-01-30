@@ -8,15 +8,15 @@ import aws_cdk.aws_lambda_event_sources as event_sources
 IMG_BUCKET_NAME = "cdk-rekn-imagebucket"
 
 
-class AwsdevhourStack(core.Stack):
-    def __init__(self, scope: core.Construct, construct_id: str, **kwargs) -> None:
+class AwsdevhourStack(cdk.Stack):
+    def __init__(self, scope: cdk.Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
         # Image Bucket
         image_bucket = s3.Bucket(self, IMG_BUCKET_NAME)
         cdk.CfnOutput(self, "imageBucket", value=image_bucket.bucket_name)
 
         # DynamoDB to store image labels
-        partition_key = dynamodb.Attribute("image", dynamodb.AttributeType.STRING)
+        partition_key = dynamodb.Attribute(name="image", type=dynamodb.AttributeType.STRING)
         table = dynamodb.Table(self, "ImageLabels", partition_key=partition_key)
         cdk.CfnOutput(self, "ddbTable", value=table.table_name)
 
