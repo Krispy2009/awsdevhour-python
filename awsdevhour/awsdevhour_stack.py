@@ -6,18 +6,30 @@ import aws_cdk.aws_iam as iam
 import aws_cdk.aws_lambda_event_sources as event_sources
 
 IMG_BUCKET_NAME = "cdk-rekn-imagebucket"
+RESIZED_IMG_BUCKET_NAME = f"{IMG_BUCKET_NAME}-resized"
 
 
 class AwsdevhourStack(cdk.Stack):
     def __init__(self, scope: cdk.Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
         # Image Bucket
-        image_bucket = s3.Bucket(self, IMG_BUCKET_NAME)
+        image_bucket = s3.Bucket(self, IMG_BUCKET_NAME, removal_policy=cdk.RemovalPolicy.DESTROY)
         cdk.CfnOutput(self, "imageBucket", value=image_bucket.bucket_name)
+
+        # Thumbnail Bucket
+        resized_image_bucket = s3.Bucket(
+            self, RESIZED_IMG_BUCKET_NAME, removal_policy=cdk.RemovalPolicy.DESTROY
+        )
+        cdk.CfnOutput(self, "resizedBucket", value=resized_image_bucket.bucket_name)
 
         # DynamoDB to store image labels
         partition_key = dynamodb.Attribute(name="image", type=dynamodb.AttributeType.STRING)
-        table = dynamodb.Table(self, "ImageLabels", partition_key=partition_key)
+        table = dynamodb.Table(
+            self,
+            "ImageLabels",
+            partition_key=partition_key,
+            removal_policy=cdk.RemovalPolicy.DESTROY,
+        )
         cdk.CfnOutput(self, "ddbTable", value=table.table_name)
 
         # Lambda function
