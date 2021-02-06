@@ -70,4 +70,20 @@ class AwsdevhourStack(cdk.Stack):
             )
         )
 
-        # The code that defines your stack goes here
+        # Lambda for Synchronous front end
+        serviceFn = lb.Function(
+            self,
+            "serviceFunction",
+            code=lb.Code.from_asset("servicelambda"),
+            runtime=lb.Runtime.PYTHON_3_7,
+            handler="index.handler",
+            environment={
+                "TABLE": table.table_name,
+                "BUCKET": image_bucket.bucket_name,
+                "RESIZEDBUCKET": resized_image_bucket.bucket_name,
+            },
+        )
+
+        image_bucket.grant_write(serviceFn)
+        resized_image_bucket.grant_write(serviceFn)
+        table.grant_read_write_data(serviceFn)
