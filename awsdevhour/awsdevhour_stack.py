@@ -32,6 +32,16 @@ class AwsdevhourStack(cdk.Stack):
         )
         cdk.CfnOutput(self, "ddbTable", value=table.table_name)
 
+        # Lambda layer for Pillow library
+        layer = lb.LayerVersion(
+            self,
+            "pil",
+            code=lb.Code.from_asset("reklayer"),
+            compatible_runtimes=[lb.Runtime.PYTHON_3_7],
+            license="Apache-2.0",
+            description="A layer to enable the PIL library in our Rekognition Lambda",
+        )
+
         # Lambda function
         rek_fn = lb.Function(
             self,
@@ -41,7 +51,12 @@ class AwsdevhourStack(cdk.Stack):
             handler="index.handler",
             timeout=cdk.Duration.seconds(30),
             memory_size=1024,
-            environment={"TABLE": table.table_name, "BUCKET": image_bucket.bucket_name},
+            layers=[layer],
+            environment={
+                "TABLE": table.table_name,
+                "BUCKET": image_bucket.bucket_name,
+                "THUMBBUCKET": resized_image_bucket.bucket_name,
+            },
         )
         rek_fn.add_event_source(
             event_sources.S3EventSource(image_bucket, events=[s3.EventType.OBJECT_CREATED])
