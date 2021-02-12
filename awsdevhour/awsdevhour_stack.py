@@ -114,6 +114,13 @@ class AwsdevhourStack(cdk.Stack):
             response_parameters={"method.response.header.Access-Control-Allow-Origin": "'*'"},
         )
 
+        request_template = json.dumps(
+            {
+                "action": "$util.escapeJavaScript($input.params('action'))",
+                "key": "$util.escapeJavaScript($input.params('key'))",
+            }
+        )
+
         lambda_integration = apigw.LambdaIntegration(
             serviceFn,
             proxy=False,
@@ -121,14 +128,7 @@ class AwsdevhourStack(cdk.Stack):
                 "integration.request.querystring.action": "method.request.querystring.action",
                 "integration.request.querystring.key": "method.request.querystring.key",
             },
-            request_templates={
-                "application/json": json.dumps(
-                    {
-                        "action": '$util.escapeJavascript($input.params("action"))',
-                        "key": '$util.escapeJavascript($input.params("key"))',
-                    }
-                )
-            },
+            request_templates={"application/json": request_template},
             passthrough_behavior=apigw.PassthroughBehavior.WHEN_NO_TEMPLATES,
             integration_responses=[success_response, error_response],
         )
