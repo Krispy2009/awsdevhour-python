@@ -64,6 +64,7 @@ class AwsdevhourStack(cdk.Stack):
             event_sources.S3EventSource(image_bucket, events=[s3.EventType.OBJECT_CREATED])
         )
         image_bucket.grant_read(rek_fn)
+        resized_image_bucket.grant_write(rek_fn)
         table.grant_write_data(rek_fn)
 
         rek_fn.add_to_role_policy(
