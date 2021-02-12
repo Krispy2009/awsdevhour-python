@@ -1,9 +1,11 @@
+import json
 from aws_cdk import core as cdk
 import aws_cdk.aws_s3 as s3
 import aws_cdk.aws_lambda as lb
 import aws_cdk.aws_dynamodb as dynamodb
 import aws_cdk.aws_iam as iam
 import aws_cdk.aws_lambda_event_sources as event_sources
+import aws_cdk.aws_apigateway as apigw
 
 IMG_BUCKET_NAME = "cdk-rekn-imagebucket"
 RESIZED_IMG_BUCKET_NAME = f"{IMG_BUCKET_NAME}-resized"
@@ -87,3 +89,77 @@ class AwsdevhourStack(cdk.Stack):
         image_bucket.grant_write(serviceFn)
         resized_image_bucket.grant_write(serviceFn)
         table.grant_read_write_data(serviceFn)
+
+        # API Gateway
+        cors_options = apigw.CorsOptions(
+            allow_origins=apigw.Cors.ALL_ORIGINS, allow_methods=apigw.Cors.ALL_METHODS
+        )
+        api = apigw.LambdaRestApi(
+            self,
+            "imageAPI",
+            default_cors_preflight_options=cors_options,
+            handler=serviceFn,
+            proxy=False,
+        )
+
+        # New Amazon API Gateway with AWS Lambda Integration
+        success_response = apigw.IntegrationResponse(
+            status_code="200",
+            response_parameters={"method.response.header.Access-Control-Allow-Origin": "'*'"},
+        )
+        error_response = apigw.IntegrationResponse(
+            selection_pattern="(\n|.)+",
+            status_code="500",
+            response_parameters={"method.response.header.Access-Control-Allow-Origin": "'*'"},
+        )
+
+        lambda_integration = apigw.LambdaIntegration(
+            serviceFn,
+            proxy=False,
+            request_parameters={
+                "integration.request.querystring.action": "method.request.querystring.action",
+                "integration.request.querystring.key": "method.request.querystring.key",
+            },
+            request_templates={
+                "application/json": json.dumps(
+                    {
+                        "action": '$util.escapeJavascript($input.params("action"))',
+                        "key": '$util.escapeJavascript($input.params("key"))',
+                    }
+                )
+            },
+            passthrough_behavior=apigw.PassthroughBehavior.WHEN_NO_TEMPLATES,
+            integration_responses=[success_response, error_response],
+        )
+
+        imageAPI = api.root.add_resource("images")
+
+        success_resp = apigw.MethodResponse(
+            status_code="200",
+            response_parameters={"method.response.header.Access-Control-Allow-Origin": True},
+        )
+        error_resp = apigw.MethodResponse(
+            status_code="500",
+            response_parameters={"method.response.header.Access-Control-Allow-Origin": True},
+        )
+
+        # GET /images
+        imageAPI.add_method(
+            "GET",
+            lambda_integration,
+            request_parameters={
+                "method.request.querystring.action": True,
+                "method.request.querystring.key": True,
+            },
+            method_responses=[success_resp, error_resp],
+        )
+        # DELETE /images
+        imageAPI.add_method(
+            "DELETE",
+            lambda_integration,
+            request_parameters={
+                "method.request.querystring.action": True,
+                "method.request.querystring.key": True,
+            },
+            method_responses=[success_resp, error_resp],
+        )
