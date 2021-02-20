@@ -5,3 +5,4 @@ aws-cdk.aws-lambda-event-sources
 aws-cdk.aws-dynamodb
 aws-cdk.aws-iam
 aws_cdk.aws-apigateway
+aws_cdk.aws-cognito
