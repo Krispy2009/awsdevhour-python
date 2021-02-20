@@ -107,6 +107,17 @@ class AwsdevhourStack(cdk.Stack):
             self, "UserPoolClient", user_pool=user_pool, generate_secret=False
         )
 
+        identity_pool = cognito.CfnIdentityPool(
+            self,
+            "ImageRekognitionIdentityPool",
+            cognito_identity_providers=[
+                {
+                    "cliendId": user_pool_client.user_pool_client_id,
+                    "providerName": user_pool.user_pool_provider_name,
+                }
+            ],
+        )
+
         # API Gateway
         cors_options = apigw.CorsOptions(
             allow_origins=apigw.Cors.ALL_ORIGINS, allow_methods=apigw.Cors.ALL_METHODS
@@ -118,6 +129,70 @@ class AwsdevhourStack(cdk.Stack):
             handler=serviceFn,
             proxy=False,
         )
+
+        auth = apigw.CfnAuthorizer(
+            self,
+            "ApiGatewayAuthorizer",
+            name="customer-authorizer",
+            identity_source="method.request.header.Authorization",
+            provider_arns=[user_pool.user_pool_arn],
+            rest_api_id=api.rest_api_id,
+            type=apigw.AuthorizationType.COGNITO,
+        )
+
+        assumed_by = iam.FederatedPrincipal(
+            "cognito-identity.amazon.com",
+            conditions={
+                "StringEquals": {"cognito-identity.amazonaws.com:aud": identity_pool.ref},
+                "ForAnyValue:StringLike": {"cognito-identity.amazonaws.com:amr": "authenticated"},
+            },
+            assume_role_action="sts:AssumeRoleWithWebIdentity",
+        )
+        authenticated_role = iam.Role(
+            self,
+            "ImageRekognitionAuthenticatedRole",
+            assumed_by=assumed_by,
+        )
+        # IAM policy granting users permission to get and put their pictures
+        policy_statement = iam.PolicyStatement(
+            actions=["s3:GetObject", "s3:PutObject"],
+            effect=iam.Effect.ALLOW,
+            resources=[
+                image_bucket.bucket_arn + "/private/${cognito-identity.amazonaws.com:sub}/*",
+                image_bucket.bucket_arn + "/private/${cognito-identity.amazonaws.com:sub}/",
+                resized_image_bucket.bucket_arn
+                + "/private/${cognito-identity.amazonaws.com:sub}/*",
+                resized_image_bucket.bucket_arn + "/private/${cognito-identity.amazonaws.com:sub}/",
+            ],
+        )
+
+        # IAM policy granting users permission to list their pictures
+        list_policy_statement = iam.PolicyStatement(
+            actions=["s3:ListBucket"],
+            effect=iam.Effect.ALLOW,
+            resources=[image_bucket.bucket_arn, resized_image_bucket.bucket_arn],
+            conditions={
+                "StringLike": {"s3:prefix": ["private/${cognito-identity.amazonaws.com:sub}/*"]}
+            },
+        )
+
+        authenticated_role.add_to_policy(policy_statement)
+        authenticated_role.add_to_policy(list_policy_statement)
+
+        # Attach role to our Identity Pool
+        cognito.CfnIdentityPoolRoleAttachment(
+            self,
+            "IdentityPoolRoleAttachment",
+            {
+                "IdentityPoolId": identity_pool.ref,
+                "roles": {"authenticated": authenticated_role.role_arn},
+            },
+        )
+
+        # Get some outputs from cognito
+        cdk.CfnOutput(self, "UserPoolId", value=user_pool.user_pool_id)
+        cdk.CfnOutput(self, "AppPoolId", value=user_pool_client.user_pool_client_id)
+        cdk.CfnOutput(self, "IdentityPoolId", value=identity_pool.ref)
 
         # New Amazon API Gateway with AWS Lambda Integration
         success_response = apigw.IntegrationResponse(
@@ -164,6 +239,8 @@ class AwsdevhourStack(cdk.Stack):
         imageAPI.add_method(
             "GET",
             lambda_integration,
+            authorization_type=apigw.AuthorizationType.COGNITO,
+            authorizer={"authorizerId": auth.ref},
             request_parameters={
                 "method.request.querystring.action": True,
                 "method.request.querystring.key": True,
@@ -174,6 +251,8 @@ class AwsdevhourStack(cdk.Stack):
         imageAPI.add_method(
             "DELETE",
             lambda_integration,
+            authorization_type=apigw.AuthorizationType.COGNITO,
+            authorizer={"authorizerId": auth.ref},
             request_parameters={
                 "method.request.querystring.action": True,
                 "method.request.querystring.key": True,
