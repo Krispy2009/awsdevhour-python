@@ -113,7 +113,7 @@ class AwsdevhourStack(cdk.Stack):
             allow_unauthenticated_identities=False,
             cognito_identity_providers=[
                 {
-                    "cliendId": user_pool_client.user_pool_client_id,
+                    "clientId": user_pool_client.user_pool_client_id,
                     "providerName": user_pool.user_pool_provider_name,
                 }
             ],
