@@ -191,7 +191,7 @@ class AwsdevhourStack(cdk.Stack):
 
         # Get some outputs from cognito
         cdk.CfnOutput(self, "UserPoolId", value=user_pool.user_pool_id)
-        cdk.CfnOutput(self, "AppPoolId", value=user_pool_client.user_pool_client_id)
+        cdk.CfnOutput(self, "AppClientId", value=user_pool_client.user_pool_client_id)
         cdk.CfnOutput(self, "IdentityPoolId", value=identity_pool.ref)
 
         # New Amazon API Gateway with AWS Lambda Integration
@@ -236,11 +236,10 @@ class AwsdevhourStack(cdk.Stack):
         )
 
         # GET /images
-        imageAPI.add_method(
+        get_method = imageAPI.add_method(
             "GET",
             lambda_integration,
             authorization_type=apigw.AuthorizationType.COGNITO,
-            authorizer=auth,
             request_parameters={
                 "method.request.querystring.action": True,
                 "method.request.querystring.key": True,
@@ -248,14 +247,20 @@ class AwsdevhourStack(cdk.Stack):
             method_responses=[success_resp, error_resp],
         )
         # DELETE /images
-        imageAPI.add_method(
+        delete_method = imageAPI.add_method(
             "DELETE",
             lambda_integration,
             authorization_type=apigw.AuthorizationType.COGNITO,
-            authorizer=auth,
             request_parameters={
                 "method.request.querystring.action": True,
                 "method.request.querystring.key": True,
             },
             method_responses=[success_resp, error_resp],
         )
+
+        # Override the authorizer id because it doesn't work when defininting it as a param
+        # in add_method
+        get_method_resource = get_method.node.find_child("Resource")
+        get_method_resource.add_property_override("AuthorizerId", auth.ref)
+        delete_method_resource = delete_method.node.find_child("Resource")
+        delete_method_resource.add_property_override("AuthorizerId", auth.ref)
