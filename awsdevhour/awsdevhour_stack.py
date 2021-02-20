@@ -6,6 +6,7 @@ import aws_cdk.aws_dynamodb as dynamodb
 import aws_cdk.aws_iam as iam
 import aws_cdk.aws_lambda_event_sources as event_sources
 import aws_cdk.aws_apigateway as apigw
+import aws_cdk.aws_cognito as cognito
 
 IMG_BUCKET_NAME = "cdk-rekn-imagebucket"
 RESIZED_IMG_BUCKET_NAME = f"{IMG_BUCKET_NAME}-resized"
@@ -90,6 +91,21 @@ class AwsdevhourStack(cdk.Stack):
         image_bucket.grant_write(serviceFn)
         resized_image_bucket.grant_write(serviceFn)
         table.grant_read_write_data(serviceFn)
+
+        # Cognito User Pool Auth
+        auto_verified_attrs = cognito.AutoVerifiedAttrs(email=True)
+        sign_in_aliases = cognito.SignInAliases(email=True, username=True)
+        user_pool = cognito.UserPool(
+            self,
+            "UserPool",
+            self_sign_up_enabled=True,
+            auto_verify=auto_verified_attrs,
+            sign_in_aliases=sign_in_aliases,
+        )
+
+        user_pool_client = cognito.UserPoolClient(
+            self, "UserPoolClient", user_pool=user_pool, generate_secret=False
+        )
 
         # API Gateway
         cors_options = apigw.CorsOptions(
