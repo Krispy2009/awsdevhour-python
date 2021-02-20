@@ -110,6 +110,7 @@ class AwsdevhourStack(cdk.Stack):
         identity_pool = cognito.CfnIdentityPool(
             self,
             "ImageRekognitionIdentityPool",
+            allow_unauthenticated_identities=False,
             cognito_identity_providers=[
                 {
                     "cliendId": user_pool_client.user_pool_client_id,
@@ -137,7 +138,8 @@ class AwsdevhourStack(cdk.Stack):
             identity_source="method.request.header.Authorization",
             provider_arns=[user_pool.user_pool_arn],
             rest_api_id=api.rest_api_id,
-            type=apigw.AuthorizationType.COGNITO,
+            # type=apigw.AuthorizationType.COGNITO,
+            type="COGNITO_USER_POOLS",
         )
 
         assumed_by = iam.FederatedPrincipal(
@@ -183,10 +185,8 @@ class AwsdevhourStack(cdk.Stack):
         cognito.CfnIdentityPoolRoleAttachment(
             self,
             "IdentityPoolRoleAttachment",
-            {
-                "IdentityPoolId": identity_pool.ref,
-                "roles": {"authenticated": authenticated_role.role_arn},
-            },
+            identity_pool_id=identity_pool.ref,
+            roles={"authenticated": authenticated_role.role_arn},
         )
 
         # Get some outputs from cognito
@@ -240,7 +240,7 @@ class AwsdevhourStack(cdk.Stack):
             "GET",
             lambda_integration,
             authorization_type=apigw.AuthorizationType.COGNITO,
-            authorizer={"authorizerId": auth.ref},
+            authorizer=auth,
             request_parameters={
                 "method.request.querystring.action": True,
                 "method.request.querystring.key": True,
@@ -252,7 +252,7 @@ class AwsdevhourStack(cdk.Stack):
             "DELETE",
             lambda_integration,
             authorization_type=apigw.AuthorizationType.COGNITO,
-            authorizer={"authorizerId": auth.ref},
+            authorizer=auth,
             request_parameters={
                 "method.request.querystring.action": True,
                 "method.request.querystring.key": True,
