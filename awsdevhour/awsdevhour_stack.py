@@ -1,6 +1,7 @@
 import json
 from aws_cdk import core as cdk
 import aws_cdk.aws_s3 as s3
+import aws_cdk.aws_s3_deployment as s3_dep
 import aws_cdk.aws_lambda as lb
 import aws_cdk.aws_dynamodb as dynamodb
 import aws_cdk.aws_iam as iam
@@ -10,6 +11,7 @@ import aws_cdk.aws_cognito as cognito
 
 IMG_BUCKET_NAME = "cdk-rekn-imagebucket"
 RESIZED_IMG_BUCKET_NAME = f"{IMG_BUCKET_NAME}-resized"
+WEBSITE_BUCKET_NAME = "cdk-rekn-publicbucket"
 
 
 class AwsdevhourStack(cdk.Stack):
@@ -24,6 +26,37 @@ class AwsdevhourStack(cdk.Stack):
             self, RESIZED_IMG_BUCKET_NAME, removal_policy=cdk.RemovalPolicy.DESTROY
         )
         cdk.CfnOutput(self, "resizedBucket", value=resized_image_bucket.bucket_name)
+
+        # S3 Static bucket for website code
+        web_bucket = s3.Bucket(
+            self,
+            WEBSITE_BUCKET_NAME,
+            website_index_document="index.html",
+            website_error_document="index.html",
+            removal_policy=cdk.RemovalPolicy.DESTROY,
+            # uncomment this and delete the policy statement below to allow public access to our
+            # static website
+            # public_read_access=true
+        )
+
+        web_policy_statement = iam.PolicyStatement(
+            actions=["s3:GetObject"],
+            resources=[web_bucket.arn_for_objects("*")],
+            principals=[iam.AnyPrincipal()],
+            conditions={"aws:SourceIp": ["139.138.203.36"]},
+        )
+
+        web_bucket.add_to_resource_policy(web_policy_statement)
+
+        cdk.CfnOutput(self, "bucketURL", value=web_bucket.bucket_website_domain_name)
+
+        # Deploy site contents to S3 Bucket
+        s3_dep.BucketDeployment(
+            self,
+            "DeployWebsite",
+            sources=[s3_dep.Source.asset("./public")],
+            destination_bucket=web_bucket,
+        )
 
         # DynamoDB to store image labels
         partition_key = dynamodb.Attribute(name="image", type=dynamodb.AttributeType.STRING)
