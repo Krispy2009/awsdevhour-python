@@ -6,3 +6,4 @@ aws-cdk.aws-dynamodb
 aws-cdk.aws-iam
 aws_cdk.aws-apigateway
 aws_cdk.aws-cognito
+aws_cdk.aws-s3-deployment
