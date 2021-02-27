@@ -21,12 +21,25 @@ class AwsdevhourStack(cdk.Stack):
         image_bucket = s3.Bucket(self, IMG_BUCKET_NAME, removal_policy=cdk.RemovalPolicy.DESTROY)
         cdk.CfnOutput(self, "imageBucket", value=image_bucket.bucket_name)
 
+        image_bucket.add_cors_rule(
+            allowed_methods=[s3.HttpMethods.GET, s3.HttpMethods.PUT],
+            allowed_origins=["*"],
+            allowed_headers=["*"],
+            max_age=3000,
+        )
+
         # Thumbnail Bucket
         resized_image_bucket = s3.Bucket(
             self, RESIZED_IMG_BUCKET_NAME, removal_policy=cdk.RemovalPolicy.DESTROY
         )
         cdk.CfnOutput(self, "resizedBucket", value=resized_image_bucket.bucket_name)
 
+        resized_image_bucket.add_cors_rule(
+            allowed_methods=[s3.HttpMethods.GET, s3.HttpMethods.PUT],
+            allowed_origins=["*"],
+            allowed_headers=["*"],
+            max_age=3000,
+        )
         # S3 Static bucket for website code
         web_bucket = s3.Bucket(
             self,
