@@ -56,7 +56,7 @@ class AwsdevhourStack(cdk.Stack):
             actions=["s3:GetObject"],
             resources=[web_bucket.arn_for_objects("*")],
             principals=[iam.AnyPrincipal()],
-            conditions={"aws:SourceIp": ["139.138.203.36"]},
+            conditions={"IpAddress": {"aws:SourceIp": ["139.138.203.36"]}},
         )
 
         web_bucket.add_to_resource_policy(web_policy_statement)
