@@ -8,6 +8,8 @@ import aws_cdk.aws_iam as iam
 import aws_cdk.aws_lambda_event_sources as event_sources
 import aws_cdk.aws_apigateway as apigw
 import aws_cdk.aws_cognito as cognito
+import aws_cdk.aws_sqs as sqs
+import aws_cdk.aws_s3_notifications as s3n
 
 IMG_BUCKET_NAME = "cdk-rekn-imagebucket"
 RESIZED_IMG_BUCKET_NAME = f"{IMG_BUCKET_NAME}-resized"
@@ -310,3 +312,21 @@ class AwsdevhourStack(cdk.Stack):
         get_method_resource.add_property_override("AuthorizerId", auth.ref)
         delete_method_resource = delete_method.node.find_child("Resource")
         delete_method_resource.add_property_override("AuthorizerId", auth.ref)
+
+        # Building SQS queue and DeadLetter Queue
+        dl_queue = sqs.Queue(
+            self,
+            "ImageDLQueue",
+            queue_name="ImageDLQueue",
+        )
+
+        dl_queue_opts = sqs.DeadLetterQueue(max_receive_count=2, queue=dl_queue)
+
+        queue = sqs.Queue(
+            self,
+            "ImageQueue",
+            queue_name="ImageQueue",
+            visibility_timeout=cdk.Duration.seconds(30),
+            receive_message_wait_time=cdk.Duration.seconds(20),
+            dead_letter_queue=dl_queue_opts,
+        )
