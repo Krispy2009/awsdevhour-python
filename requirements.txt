@@ -7,3 +7,5 @@ aws-cdk.aws-iam
 aws_cdk.aws-apigateway
 aws_cdk.aws-cognito
 aws_cdk.aws-s3-deployment
+aws_cdk.aws-s3-notifications
+aws_cdk.aws-sqs
