@@ -109,9 +109,7 @@ class AwsdevhourStack(cdk.Stack):
                 "THUMBBUCKET": resized_image_bucket.bucket_name,
             },
         )
-        rek_fn.add_event_source(
-            event_sources.S3EventSource(image_bucket, events=[s3.EventType.OBJECT_CREATED])
-        )
+
         image_bucket.grant_read(rek_fn)
         resized_image_bucket.grant_write(rek_fn)
         table.grant_write_data(rek_fn)
@@ -329,4 +327,11 @@ class AwsdevhourStack(cdk.Stack):
             visibility_timeout=cdk.Duration.seconds(30),
             receive_message_wait_time=cdk.Duration.seconds(20),
             dead_letter_queue=dl_queue_opts,
+        )
+
+        # S3 Bucket Create Notification to SQS
+        # Whenever an image is uploaded add it to the queue
+
+        image_bucket.add_object_created_notification(
+            s3n.SqsDestination(queue), filters=s3.NotificationKeyFilter(prefix="private/")
         )
