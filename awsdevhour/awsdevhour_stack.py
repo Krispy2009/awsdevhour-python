@@ -333,5 +333,5 @@ class AwsdevhourStack(cdk.Stack):
         # Whenever an image is uploaded add it to the queue
 
         image_bucket.add_object_created_notification(
-            s3n.SqsDestination(queue), filters=s3.NotificationKeyFilter(prefix="private/")
+            s3n.SqsDestination(queue), s3.NotificationKeyFilter(prefix="private/")
         )
